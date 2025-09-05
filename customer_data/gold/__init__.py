@@ -1,0 +1,1 @@
+# Gold loan customer data module
