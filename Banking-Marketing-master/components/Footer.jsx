@@ -11,7 +11,8 @@ export default function Footer() {
     { name: "Investments", href: "#investments" },
     { name: "Insurance", href: "#insurance" },
     { name: "About", href: "#about" },
-    { name: "Contact Us", href: "#contact" }
+    { name: "Contact Us", href: "#contact" },
+    { name: "Admin", href: "/admin" }
   ];
 
   const socialLinks = [

@@ -180,13 +180,23 @@ class CustomerDataManager:
         
         if completed_apps:
             stats["approved"] = len([app for app in completed_apps 
-                                   if app["prediction_result"]["result"]["status"] == "APPROVED"])
+                                   if app["prediction_result"]["result"].get("status") == "APPROVED"])
             stats["partial"] = len([app for app in completed_apps 
-                                  if app["prediction_result"]["result"]["status"] == "PARTIAL_APPROVAL"])
+                                  if app["prediction_result"]["result"].get("status") == "PARTIAL_APPROVAL"])
             
             # Calculate averages
-            amounts = [app["prediction_result"]["result"]["eligible_amount"] for app in completed_apps]
-            interests = [app["prediction_result"]["result"]["interest_rate"] for app in completed_apps]
+            amounts = []
+            interests = []
+            
+            for app in completed_apps:
+                result = app["prediction_result"]["result"]
+                if "eligible_amount" in result:
+                    amounts.append(result["eligible_amount"])
+                elif "approved_amount" in result:
+                    amounts.append(result["approved_amount"])
+                
+                if "interest_rate" in result:
+                    interests.append(result["interest_rate"])
             
             if amounts:
                 stats["average_amount"] = sum(amounts) / len(amounts)
@@ -194,3 +204,30 @@ class CustomerDataManager:
                 stats["average_interest"] = sum(interests) / len(interests)
         
         return stats
+    
+    def export_to_csv(self, loan_type: str) -> Path:
+        """Generate/regenerate CSV export for a loan type"""
+        applications = self.get_customer_applications(loan_type, limit=1000)
+        
+        csv_path = self.base_path / loan_type / "reports" / f"{loan_type}_applications.csv"
+        
+        if not applications:
+            # Create empty CSV with headers
+            headers = ["timestamp", "session_id", "customer_name", "customer_email", 
+                      "customer_phone", "status", "eligible_amount", "interest_rate", 
+                      "requested_amount", "approval_status"]
+            
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=headers)
+                writer.writeheader()
+            
+            return csv_path
+        
+        # Regenerate CSV from all applications
+        if csv_path.exists():
+            csv_path.unlink()  # Remove existing file
+        
+        for application in reversed(applications):  # Oldest first
+            self.update_csv_summary(loan_type, application)
+        
+        return csv_path
