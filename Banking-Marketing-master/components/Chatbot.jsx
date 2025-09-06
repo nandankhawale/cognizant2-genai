@@ -171,19 +171,19 @@ const Chatbot = ({ onClose }) => {
           if (result.status === "APPROVED") {
             // Full approval - customer gets what they asked for
             resultMessage = `
-🎉 **Great News! You're Pre-Approved for ${loanTypeName} Loan**
+Great News! You're Pre-Approved for ${loanTypeName} Loan
 
-✅ **YES! You are eligible for ₹${requestedAmount.toLocaleString()} at ${
+YES! You are eligible for ₹${requestedAmount.toLocaleString()} at ${
               result.interest_rate
-            }% per annum**
+            }% per annum
 
-🚀 **What's Next:**
+What's Next:
 • Your loan application is pre-approved
 • Competitive interest rate of ${result.interest_rate}% per annum
 • Quick processing and minimal documentation
 • Our relationship manager will contact you within 24 hours
 
-💼 **Why Choose Us:**
+Why Choose Us:
 • Fastest loan processing in the industry
 • Transparent pricing with no hidden charges
 • Dedicated customer support throughout the process
@@ -193,24 +193,24 @@ Ready to proceed? Our team will reach out to you soon!
           } else {
             // Partial approval - offer what they can get
             resultMessage = `
-💡 **Good News! You're Eligible for ${loanTypeName} Loan**
+Good News! You're Eligible for ${loanTypeName} Loan
 
-✅ **You can get up to ₹${eligibleAmount.toLocaleString()} at ${
+You can get up to ₹${eligibleAmount.toLocaleString()} at ${
               result.interest_rate
-            }% per annum**
+            }% per annum
 
-📊 **Your Application Summary:**
+Your Application Summary:
 • Requested Amount: ₹${requestedAmount.toLocaleString()}
 • Approved Amount: ₹${eligibleAmount.toLocaleString()}
 • Interest Rate: ${result.interest_rate}% per annum
 
-🎯 **Special Benefits:**
+Special Benefits:
 • Pre-approved loan offer valid for 30 days
 • Flexible repayment options available
 • Option to reapply for higher amount after 6 months
 • Priority processing for existing customers
 
-💬 **Want to discuss your options?** Our loan specialist will call you to explore ways to maximize your loan amount.
+Want to discuss your options? Our loan specialist will call you to explore ways to maximize your loan amount.
 
 Our team will contact you within 24 hours to proceed!
             `;
