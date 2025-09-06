@@ -107,7 +107,7 @@ const Chatbot = ({ onClose }) => {
           loan_type: loanType,
         },
         {
-          timeout: 15000, // 15 second timeout for starting session
+          timeout: 150000, // 15 second timeout for starting session
           headers: {
             'Content-Type': 'application/json'
           }
@@ -385,42 +385,45 @@ Our team will contact you within 24 hours to proceed!
       
 
       {/* Input Area */}
-      <div className="px-4 py-3 bg-white border-t border-gray-200">
-        <div className="flex items-center space-x-3">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={
-              sessionId
-                ? "Tell me about your loan requirements..."
-                : "Type your message or select a loan type..."
-            }
-            disabled={isLoading}
-            className="flex-1 px-4 py-3 text-sm border text-gray-500 border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#000048]/20 focus:border-[#000048] disabled:opacity-50"
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!inputMessage.trim() || isLoading}
-            className="p-3 bg-[#000048] text-white rounded-full hover:bg-[#000048]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            <svg
-              className="w-5 h-5 transform rotate-45"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
+      {/* Input Area */}
+<div className="px-4 py-3 bg-white border-t border-gray-200">
+  <div className="flex items-center space-x-3">
+    <input
+      type="text"
+      value={inputMessage}
+      onChange={(e) => setInputMessage(e.target.value)}
+      onKeyPress={handleKeyPress}
+      placeholder={
+        sessionId
+          ? "Tell me about your loan requirements..."
+          : "Type your message or select a loan type..."
+      }
+      disabled={isLoading}
+      autoFocus // This keeps the input focused
+      className="flex-1 px-4 py-3 text-sm border text-gray-500 border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-[#000048]/20 focus:border-[#000048] disabled:opacity-50"
+      ref={input => input && input.focus()} // Additional focus management
+    />
+    <button
+      onClick={handleSendMessage}
+      disabled={!inputMessage.trim() || isLoading}
+      className="p-3 bg-[#000048] text-white rounded-full hover:bg-[#000048]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+    >
+      <svg
+        className="w-5 h-5 transform rotate-45"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+        />
+      </svg>
+    </button>
+  </div>
+</div>
     </div>
   );
 };
