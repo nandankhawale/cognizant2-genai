@@ -5,6 +5,7 @@ from .home_loan import HomeLoanService
 from .personal_loan import PersonalLoanService
 from .gold_loan import GoldLoanService
 from .business_loan import BusinessLoanService
+from .car_loan import CarLoanService
 from .base_loan import BaseLoanService
 
 class LoanServiceFactory:
@@ -30,7 +31,8 @@ class LoanServiceFactory:
             "home": "models/home_loan_models", 
             "personal": "models/personal_loan_models",
             "gold": "models/gold_loan_models",
-            "business": "models/business_loan_models"
+            "business": "models/business_loan_models",
+            "car": "models/car_loan_models"
         }
         
         service_classes = {
@@ -38,7 +40,8 @@ class LoanServiceFactory:
             "home": HomeLoanService,
             "personal": PersonalLoanService,
             "gold": GoldLoanService,
-            "business": BusinessLoanService
+            "business": BusinessLoanService,
+            "car": CarLoanService
         }
         
         if loan_type not in service_classes:
@@ -52,7 +55,7 @@ class LoanServiceFactory:
     @classmethod
     def get_available_loan_types(cls) -> list:
         """Get list of available loan types"""
-        return ["education", "home", "personal", "gold", "business"]
+        return ["education", "home", "personal", "gold", "business", "car"]
     
     @classmethod
     def clear_cache(cls):

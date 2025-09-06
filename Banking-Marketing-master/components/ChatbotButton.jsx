@@ -24,10 +24,24 @@ const ChatbotButton = () => {
   return (
     <>
       {/* Chatbot Modal */}
-      {isChatbotOpen && (
+      {/* {isChatbotOpen && (
         <div className="fixed bottom-40 right-6 z-50">
           <Chatbot onClose={handleCloseChatbot} />
         </div>
+     )} */}
+      {isChatbotOpen && (
+        <>
+          {/* Overlay with very light blur */}
+          <div className="fixed inset-0 backdrop-blur-[5px] z-5"></div>
+
+          {/* Chatbot modal on top of overlay */}
+          <div
+            className="fixed bottom-5 right-6 z-50"
+            style={{ marginTop: "60px" }}
+          >
+            <Chatbot onClose={handleCloseChatbot} />
+          </div>
+        </>
       )}
 
       {/* Chatbot Button - Only show if chatbot is closed */}
@@ -44,8 +58,8 @@ const ChatbotButton = () => {
                 hover:shadow-xl
                 focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50
                 active:scale-95
-                ${isHovered ? 'scale-110' : 'scale-100'}
-                ${isClicked ? 'scale-90' : ''}
+                ${isHovered ? "scale-110" : "scale-100"}
+                ${isClicked ? "scale-90" : ""}
               `}
               aria-label="Open chatbot"
             >
@@ -57,10 +71,10 @@ const ChatbotButton = () => {
                     width={112}
                     height={112}
                     className="w-full h-full animate-spin"
-                    style={{ animationDuration: '6s' }}
+                    style={{ animationDuration: "6s" }}
                   />
                 </div>
-                
+
                 <div className="relative z-10">
                   <Image
                     src="/assets/icon.png"
@@ -69,7 +83,7 @@ const ChatbotButton = () => {
                     height={60}
                     className={`
                       transition-transform duration-300
-                      ${isHovered ? 'scale-110' : 'scale-100'}
+                      ${isHovered ? "scale-110" : "scale-100"}
                     `}
                   />
                 </div>
@@ -86,7 +100,10 @@ const ChatbotButton = () => {
 
             {/* "Ask Cogni" text - Positioned with minimal spacing below the button */}
             <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-full text-center">
-              <span className="text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-1.5 rounded-full shadow-md border border-blue-400/30 whitespace-nowrap" data-chatbot-button>
+              <span
+                className="text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 px-3 py-1.5 rounded-full shadow-md border border-blue-400/30 whitespace-nowrap"
+                data-chatbot-button
+              >
                 Ask Cogni - Loans
               </span>
             </div>

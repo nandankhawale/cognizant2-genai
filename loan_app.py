@@ -101,7 +101,10 @@ def get_loan_types():
     descriptions = {
         "education": "Loans for higher education, courses, and academic expenses",
         "home": "Loans for purchasing, constructing, or renovating residential properties", 
-        "personal": "Unsecured loans for personal expenses like medical, travel, wedding, etc."
+        "personal": "Unsecured loans for personal expenses like medical, travel, wedding, etc.",
+        "business": "Loans for business expansion, working capital, and commercial purposes",
+        "gold": "Secured loans against gold jewelry and ornaments",
+        "car": "Loans for purchasing new and used cars with flexible repayment options"
     }
     
     return LoanTypesResponse(
@@ -232,6 +235,9 @@ def chat_message(req: MessageRequest):
                 elif loan_type == "business":
                     numeric_fields = ["Business_Age_Years", "Annual_Revenue", "Net_Profit", "CIBIL_Score",
                                     "Existing_Loan_Amount", "Loan_Tenure_Years", "Expected_Loan_Amount"]
+                elif loan_type == "car":
+                    numeric_fields = ["Age", "applicant_annual_salary", "Coapplicant_Annual_Income", "CIBIL",
+                                    "down_payment_percent", "Tenure", "loan_amount"]
                 
                 for field in numeric_fields:
                     if field in typed:
@@ -255,19 +261,29 @@ def chat_message(req: MessageRequest):
                     summary_requested_amount = int(typed["Expected_Loan_Amount"])
                 elif loan_type == "business":
                     summary_requested_amount = int(typed["Expected_Loan_Amount"])
+                elif loan_type == "car":
+                    summary_requested_amount = int(typed["loan_amount"])
                 else:
                     summary_requested_amount = int(typed.get("Expected_Loan_Amount", typed.get("Loan_amount_requested", 500000)))
 
                 # Build summary
+                # Determine approved amount (security: don't reveal max if user requested less)
+                if predicted_loan >= summary_requested_amount:
+                    approved_amount = summary_requested_amount  # Give what they asked for
+                    approval_status = "APPROVED"
+                else:
+                    approved_amount = predicted_loan    # Give what they're eligible for
+                    approval_status = "PARTIAL_APPROVAL"
+                
                 summary = {
                     "loan_type": loan_type,
                     "profile": {k: (int(v) if isinstance(v, float) and k in numeric_fields else v) 
                               for k, v in typed.items()},
                     "result": {
-                        "eligible_amount": int(predicted_loan),
+                        "approved_amount": int(approved_amount),
                         "interest_rate": float(predicted_interest),
                         "requested_amount": summary_requested_amount,
-                        "status": "APPROVED" if predicted_loan >= summary_requested_amount else "PARTIAL_APPROVAL"
+                        "status": approval_status
                     }
                 }
 
@@ -314,9 +330,11 @@ def chat_message(req: MessageRequest):
                 
                 if predicted_loan >= requested_amount:
                     # Full approval - customer gets what they asked for
+                    # SECURITY: Don't reveal maximum eligible amount, only show requested amount
+                    approved_amount = requested_amount
                     assistant_msg = (
                         f"🎉 Fantastic news {customer_name}! You're PRE-APPROVED for your {loan_type_title} Loan!\n\n"
-                        f"✅ YES! You are eligible for ₹{requested_amount:,} at {predicted_interest}% per annum\n\n"
+                        f"✅ YES! You are eligible for ₹{approved_amount:,} at {predicted_interest}% per annum\n\n"
                         f"🚀 What happens next:\n"
                         f"• Your loan is pre-approved and ready for processing\n"
                         f"• Competitive interest rate of {predicted_interest}% per annum\n"
@@ -325,16 +343,17 @@ def chat_message(req: MessageRequest):
                         f"📞 We'll reach out to you at {customer_info.get('email', '')} or {customer_info.get('phone', '')} soon!"
                     )
                 else:
-                    # Partial approval - focus on what they can get
+                    # Partial approval - show only what they can actually get
+                    approved_amount = predicted_loan
                     assistant_msg = (
                         f"💡 Great news {customer_name}! You're ELIGIBLE for a {loan_type_title} Loan!\n\n"
-                        f"✅ You can get up to ₹{predicted_loan:,.0f} at {predicted_interest}% per annum\n\n"
+                        f"✅ You can get ₹{approved_amount:,.0f} at {predicted_interest}% per annum\n\n"
                         f"🎯 Your loan offer:\n"
-                        f"• Approved Amount: ₹{predicted_loan:,.0f}\n"
+                        f"• Approved Amount: ₹{approved_amount:,.0f}\n"
                         f"• Interest Rate: {predicted_interest}% per annum\n"
                         f"• Pre-approved offer valid for 30 days\n"
                         f"• Flexible repayment options available\n\n"
-                        f"💬 Want to discuss maximizing your loan amount? Our specialist will call you!\n\n"
+                        f"💬 Want to discuss your loan requirements? Our specialist will call you!\n\n"
                         f"📞 We'll contact you at {customer_info.get('email', '')} or {customer_info.get('phone', '')} within 24 hours."
                     )
                 
