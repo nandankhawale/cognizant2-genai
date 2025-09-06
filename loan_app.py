@@ -10,13 +10,25 @@ from dotenv import load_dotenv
 
 from loan_services.loan_factory import LoanServiceFactory
 from customer_data.storage_manager import CustomerDataManager
+from customer_data.mongodb_storage_manager import MongoDBStorageManager
 
 # Load environment variables
 load_dotenv()
 
 # ---------- Config ----------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-storage_manager = CustomerDataManager()
+
+# Initialize storage managers
+try:
+    # Try MongoDB first
+    mongodb_storage = MongoDBStorageManager()
+    storage_manager = mongodb_storage
+    print("✅ Using MongoDB for data storage")
+except Exception as e:
+    # Fallback to local storage
+    storage_manager = CustomerDataManager()
+    print(f"⚠️  MongoDB connection failed, using local storage: {e}")
+    print("📁 Using local file storage as fallback")
 
 # ---------- FastAPI app ----------
 app = FastAPI(title="Multi-Loan Chatbot API", version="2.0.0")
@@ -435,6 +447,18 @@ def get_loan_stats(loan_type: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
 
+@app.get("/admin/stats")
+def get_all_loan_stats():
+    """Get statistics for all loan types (admin endpoint)"""
+    try:
+        all_stats = {}
+        for loan_type in LoanServiceFactory.get_available_loan_types():
+            all_stats[loan_type] = storage_manager.get_application_stats(loan_type)
+        
+        return all_stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
+
 @app.get("/admin/applications/{loan_type}")
 def get_recent_applications(loan_type: str, limit: int = 10):
     """Get recent applications for a loan type (admin endpoint)"""
@@ -443,27 +467,88 @@ def get_recent_applications(loan_type: str, limit: int = 10):
     
     try:
         applications = storage_manager.get_customer_applications(loan_type, limit)
-        # Remove sensitive customer info for API response
-        sanitized_apps = []
-        for app in applications:
-            sanitized = app.copy()
-            if "customer_info" in sanitized:
-                # Keep only initials and partial contact info
-                customer = sanitized["customer_info"]
-                sanitized["customer_info"] = {
-                    "name_initial": customer.get("name", "")[:2] + "***",
-                    "email_domain": customer.get("email", "").split("@")[-1] if "@" in customer.get("email", "") else "***",
-                    "phone_partial": "***" + customer.get("phone", "")[-4:] if len(customer.get("phone", "")) > 4 else "***"
-                }
-            sanitized_apps.append(sanitized)
-        
-        return {
-            "loan_type": loan_type,
-            "applications": sanitized_apps,
-            "count": len(sanitized_apps)
-        }
+        return applications
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting applications: {str(e)}")
+
+@app.get("/admin/exports")
+def get_export_info():
+    """Get information about available CSV exports (admin endpoint)"""
+    try:
+        from pathlib import Path
+        import os
+        
+        export_info = {}
+        for loan_type in LoanServiceFactory.get_available_loan_types():
+            csv_path = Path("customer_data") / loan_type / "reports" / f"{loan_type}_applications.csv"
+            
+            if csv_path.exists():
+                stat = csv_path.stat()
+                # Count lines in CSV (excluding header)
+                try:
+                    with open(csv_path, 'r') as f:
+                        record_count = sum(1 for line in f) - 1  # Subtract header
+                except:
+                    record_count = 0
+                
+                export_info[loan_type] = {
+                    "exists": True,
+                    "size": stat.st_size,
+                    "lastModified": stat.st_mtime,
+                    "recordCount": max(0, record_count)
+                }
+            else:
+                export_info[loan_type] = {
+                    "exists": False,
+                    "size": 0,
+                    "lastModified": None,
+                    "recordCount": 0
+                }
+        
+        return export_info
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting export info: {str(e)}")
+
+@app.get("/admin/export/{loan_type}")
+def download_csv_export(loan_type: str):
+    """Download CSV export for a loan type (admin endpoint)"""
+    if loan_type not in LoanServiceFactory.get_available_loan_types():
+        raise HTTPException(status_code=400, detail="Invalid loan type")
+    
+    try:
+        from fastapi.responses import FileResponse
+        from pathlib import Path
+        
+        csv_path = Path("customer_data") / loan_type / "reports" / f"{loan_type}_applications.csv"
+        
+        if not csv_path.exists():
+            raise HTTPException(status_code=404, detail="CSV file not found")
+        
+        return FileResponse(
+            path=str(csv_path),
+            filename=f"{loan_type}_applications.csv",
+            media_type='text/csv'
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading CSV: {str(e)}")
+
+@app.post("/admin/generate-report/{loan_type}")
+def generate_csv_report(loan_type: str):
+    """Generate a new CSV report for a loan type (admin endpoint)"""
+    if loan_type not in LoanServiceFactory.get_available_loan_types():
+        raise HTTPException(status_code=400, detail="Invalid loan type")
+    
+    try:
+        # Generate CSV report using storage manager
+        csv_path = storage_manager.export_to_csv(loan_type)
+        
+        return {
+            "message": f"CSV report generated successfully for {loan_type} loans",
+            "file_path": str(csv_path),
+            "loan_type": loan_type
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
