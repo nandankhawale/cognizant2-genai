@@ -105,6 +105,12 @@ const Chatbot = ({ onClose }) => {
         `${API_BASE_URL}${API_CONFIG.ENDPOINTS.CHAT_START}`,
         {
           loan_type: loanType,
+        },
+        {
+          timeout: 15000, // 15 second timeout for starting session
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
       );
 
@@ -112,11 +118,17 @@ const Chatbot = ({ onClose }) => {
       setCurrentLoanType(loanType);
       updateMessage(loadingId, response.data.message);
     } catch (error) {
-      updateMessage(
-        loadingId,
-        "Sorry, I encountered an error starting your application. Please try again."
-      );
       console.error("Error starting chat:", error);
+      
+      let errorMessage = "Sorry, I encountered an error starting your application. Please try again.";
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = "Connection timed out. Please check your internet connection and try again.";
+      } else if (error.response) {
+        errorMessage = `Unable to start application: ${error.response.data?.detail || error.response.statusText}`;
+      }
+      
+      updateMessage(loadingId, errorMessage);
     }
     setIsLoading(false);
   };
@@ -125,7 +137,7 @@ const Chatbot = ({ onClose }) => {
     if (!sessionId) return;
 
     setIsLoading(true);
-    const loadingId = addMessage("Processing...", "bot", true);
+    const loadingId = addMessage("Processing your information...", "bot", true);
 
     try {
       const response = await axios.post(
@@ -133,6 +145,12 @@ const Chatbot = ({ onClose }) => {
         {
           session_id: sessionId,
           message: message,
+        },
+        {
+          timeout: 30000, // 30 second timeout
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
       );
 
@@ -202,11 +220,21 @@ Our team will contact you within 24 hours to proceed!
         }, 1000);
       }
     } catch (error) {
-      updateMessage(
-        loadingId,
-        "Sorry, I encountered an error. Please try again."
-      );
       console.error("Error sending message:", error);
+      
+      let errorMessage = "Sorry, I encountered an error. Please try again.";
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = "Request timed out. Please check your connection and try again.";
+      } else if (error.response) {
+        // Server responded with error status
+        errorMessage = `Server error: ${error.response.data?.detail || error.response.statusText}`;
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = "Unable to connect to server. Please check your connection.";
+      }
+      
+      updateMessage(loadingId, errorMessage);
     }
     setIsLoading(false);
   };

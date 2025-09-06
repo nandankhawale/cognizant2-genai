@@ -55,7 +55,7 @@ class BaseLoanService(ABC):
     
     def extract_info_from_response(self, user_text: str, conversation: List[Dict[str, str]]) -> Dict[str, Any]:
         """Extract information from user response using OpenAI or fallback logic"""
-        # Try OpenAI first
+        # Try OpenAI with very short timeout first
         if self.client:
             extraction_prompt = self.get_extraction_prompt(user_text, conversation)
             
@@ -63,7 +63,9 @@ class BaseLoanService(ABC):
                 resp = self.client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "user", "content": extraction_prompt}],
-                    temperature=0
+                    temperature=0,
+                    max_tokens=500,
+                    timeout=8  # 8 second timeout
                 )
                 extracted_text = resp.choices[0].message.content.strip()
                 import re, json
@@ -71,7 +73,7 @@ class BaseLoanService(ABC):
                 if m:
                     return json.loads(m.group())
             except Exception as e:
-                print(f"OpenAI extraction failed: {e}")
+                print(f"OpenAI extraction failed (using fallback): {e}")
         
         # Fallback to simple pattern matching for basic fields
         return self._fallback_extraction(user_text, conversation)
@@ -154,13 +156,23 @@ class BaseLoanService(ABC):
             return self.get_fallback_greeting()
         
         try:
+            # Create a proper greeting prompt
+            greeting_messages = conversation.copy()
+            greeting_messages.append({
+                "role": "user", 
+                "content": "Hello, I'm interested in this loan. Please greet me and ask for the first piece of information you need."
+            })
+            
             resp = self.client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=conversation,
-                temperature=0.7
+                messages=greeting_messages,
+                temperature=0.7,
+                max_tokens=200,
+                timeout=8
             )
             return resp.choices[0].message.content
-        except Exception:
+        except Exception as e:
+            print(f"OpenAI greeting failed: {e}")
             return self.get_fallback_greeting()
     
     @abstractmethod
@@ -178,18 +190,22 @@ class BaseLoanService(ABC):
         Missing fields: {missing_fields}
         
         Continue the conversation naturally to collect the missing information.
-        If you have all required fields, respond with "INFORMATION_COMPLETE".
+        Ask for the next missing field in a friendly way.
         """
-        conversation.append({"role": "system", "content": context_info})
+        conversation_copy = conversation.copy()
+        conversation_copy.append({"role": "system", "content": context_info})
         
         try:
             resp = self.client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=conversation,
-                temperature=0.7
+                messages=conversation_copy,
+                temperature=0.7,
+                max_tokens=200,
+                timeout=8
             )
             return resp.choices[0].message.content
-        except Exception:
+        except Exception as e:
+            print(f"OpenAI followup failed: {e}")
             return self.get_fallback_followup(missing_fields)
     
     def get_fallback_followup(self, missing_fields: List[str]) -> str:

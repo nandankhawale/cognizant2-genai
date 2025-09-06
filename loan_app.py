@@ -235,6 +235,8 @@ def chat_message(req: MessageRequest):
                 elif loan_type == "business":
                     numeric_fields = ["Business_Age_Years", "Annual_Revenue", "Net_Profit", "CIBIL_Score",
                                     "Existing_Loan_Amount", "Loan_Tenure_Years", "Expected_Loan_Amount"]
+                elif loan_type == "gold":
+                    numeric_fields = ["Age", "Annual_Income", "CIBIL_Score", "Gold_Value", "Loan_Amount", "Loan_Tenure"]
                 elif loan_type == "car":
                     numeric_fields = ["Age", "applicant_annual_salary", "Coapplicant_Annual_Income", "CIBIL",
                                     "down_payment_percent", "Tenure", "loan_amount"]
@@ -261,6 +263,8 @@ def chat_message(req: MessageRequest):
                     summary_requested_amount = int(typed["Expected_Loan_Amount"])
                 elif loan_type == "business":
                     summary_requested_amount = int(typed["Expected_Loan_Amount"])
+                elif loan_type == "gold":
+                    summary_requested_amount = int(typed["Loan_Amount"])
                 elif loan_type == "car":
                     summary_requested_amount = int(typed["loan_amount"])
                 else:
@@ -325,6 +329,12 @@ def chat_message(req: MessageRequest):
                     requested_amount = int(typed['Loan_amount_requested'])
                 elif loan_type == "personal":
                     requested_amount = int(typed['Expected_Loan_Amount'])
+                elif loan_type == "gold":
+                    requested_amount = int(typed['Loan_Amount'])
+                elif loan_type == "business":
+                    requested_amount = int(typed['Expected_Loan_Amount'])
+                elif loan_type == "car":
+                    requested_amount = int(typed['loan_amount'])
                 else:
                     requested_amount = int(typed.get('Expected_Loan_Amount', typed.get('Loan_amount_requested', predicted_loan)))
                 

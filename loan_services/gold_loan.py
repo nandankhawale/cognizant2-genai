@@ -13,16 +13,14 @@ class GoldLoanService(BaseLoanService):
             "Customer_Name",
             "Customer_Email", 
             "Customer_Phone",
-            # Model Prediction Fields - CORRECTED to match model expectations
+            # Model Prediction Fields
             "Age",
-            "Annual_Income",  # Will convert to Monthly_Income
+            "Annual_Income",
             "CIBIL_Score",
             "Occupation",
-            "Gold_Weight",
-            "Gold_Purity", 
-            "Gold_Rate_Per_Gram",  # Added to calculate Gold_Value
-            "Existing_EMI",  # Added missing field
-            "Loan_Tenure_Years",  # Corrected field name
+            "Gold_Value",
+            "Loan_Amount",
+            "Loan_Tenure",
         ]
     
     def get_model_files(self) -> Dict[str, str]:
@@ -45,21 +43,20 @@ Required Loan Information:
 - Annual_Income (yearly income in INR)
 - CIBIL_Score (credit score, 300-900, minimum 600 for gold loans)
 - Occupation: exactly one of ["Salaried", "Retired", "Business", "Self-employed"]
-- Gold_Weight (weight of gold in grams)
-- Gold_Purity (purity in karats, typically 18K, 22K, 24K)
-- Gold_Rate_Per_Gram (current market rate per gram in INR)
-- Existing_EMI (current monthly EMI obligations in INR, enter 0 if none)
-- Loan_Tenure_Years (repayment period in years, typically 1-3 for gold loans)
+- Gold_Value (current market value of your gold in INR - we'll assess the actual value during verification)
+- Loan_Amount (desired loan amount in INR)
+- Loan_Tenure (repayment period in years, typically 1-3 for gold loans)
 
 Guidelines:
 1) Be conversational and friendly, like a helpful gold loan specialist.
 2) Ask 1-2 related questions at a time to avoid overwhelming the customer.
-3) Provide brief explanations when needed (e.g., "Gold value is calculated based on weight, purity, and current market rates").
-4) If user provides partial info, acknowledge it positively and ask for missing details.
-5) Validate responses and ask for clarification if unclear.
-6) For Occupation, provide the exact options: Salaried, Retired, Business, Self-employed.
-7) When you have ALL information, say exactly: INFORMATION_COMPLETE
-8) Do NOT provide loan predictions - only collect information professionally.
+3) For Gold_Value, ask for the approximate current market value of their gold in INR.
+4) Do NOT ask for gold weight, purity, or rate per gram - only ask for the total gold value.
+5) If user provides partial info, acknowledge it positively and ask for missing details.
+6) Validate responses and ask for clarification if unclear.
+7) For Occupation, provide the exact options: Salaried, Retired, Business, Self-employed.
+8) When you have ALL information, say exactly: INFORMATION_COMPLETE
+9) Do NOT provide loan predictions - only collect information professionally.
 
 Start by introducing yourself as a gold loan specialist."""
     
@@ -86,19 +83,18 @@ Loan Information:
 - Annual_Income: number in INR (yearly income, must be positive)
 - CIBIL_Score: number (300-900, minimum 600 for gold loans)
 - Occupation: exactly one of ["Salaried", "Retired", "Business", "Self-employed"]
-- Gold_Weight: number (weight of gold in grams)
-- Gold_Purity: number (purity in karats, typically 18, 22, 24)
-- Gold_Rate_Per_Gram: number (current market rate per gram in INR)
-- Existing_EMI: number (current monthly EMI obligations, 0 if none)
-- Loan_Tenure_Years: number (years, typically 1-3 for gold loans)
+- Gold_Value: number (current market value of gold in INR)
+- Loan_Amount: number (desired loan amount in INR)
+- Loan_Tenure: number (years, typically 1-3 for gold loans)
 
 Important:
 - For Occupation, map variations like "salaried employee", "business owner", "retired person" to exact options
 - Convert lakhs/crores to actual numbers (e.g., "5 lakhs income" = 500000)
 - Extract only information that is clearly stated
+- Do NOT extract Gold_Weight, Gold_Purity, or Gold_Rate_Per_Gram - only Gold_Value
 
 Return ONLY a JSON object with the extracted fields. If no information is found, return empty JSON {{}}.
-Example: {{"Customer_Name": "John Doe", "Age": 45, "Annual_Income": 900000, "Occupation": "Salaried", "Gold_Weight": 50, "Gold_Purity": 22, "Existing_EMI": 5000}}
+Example: {{"Customer_Name": "John Doe", "Age": 45, "Annual_Income": 900000, "Occupation": "Salaried", "Gold_Value": 400000, "Loan_Amount": 300000, "Loan_Tenure": 2}}
 """.strip()
     
     def validate_field(self, field_name: str, value: Any) -> Tuple[bool, str]:
@@ -132,26 +128,25 @@ Example: {{"Customer_Name": "John Doe", "Age": 45, "Annual_Income": 900000, "Occ
                 elif income > 60000000:  # Maximum 6 crores per year (reasonable upper limit)
                     return False, "Please verify your annual income. The amount seems unusually high. Could you confirm?"
                     
-            elif field_name == "Gold_Weight":
-                weight = float(value)
-                if weight <= 0:
-                    return False, "Gold weight must be a positive amount. Please provide the weight of your gold in grams."
-                elif weight > 5000:  # Maximum 5kg gold (reasonable upper limit)
-                    return False, "Please verify your gold weight. The amount seems unusually high. Could you confirm the weight in grams?"
+            elif field_name == "Gold_Value":
+                value_amount = float(value)
+                if value_amount <= 0:
+                    return False, "Gold value must be a positive amount. Please provide the current market value of your gold in INR."
+                elif value_amount < 10000:  # Minimum 10k gold value
+                    return False, "INELIGIBLE: Minimum gold value of ₹10,000 is required for gold loan eligibility."
+                elif value_amount > 50000000:  # Maximum 5 crores (reasonable upper limit)
+                    return False, "Please verify your gold value. The amount seems unusually high. Could you confirm the current market value?"
                     
-            elif field_name == "Gold_Purity":
-                purity = float(value)
-                if purity <= 0 or purity > 24:
-                    return False, "Gold purity should be between 1 and 24 karats. Common purities are 18K, 22K, or 24K."
+            elif field_name == "Loan_Amount":
+                amount = float(value)
+                if amount <= 0:
+                    return False, "Loan amount must be a positive amount. Please provide your desired loan amount in INR."
+                elif amount < 5000:  # Minimum 5k loan
+                    return False, "INELIGIBLE: Minimum loan amount of ₹5,000 is required."
+                elif amount > 10000000:  # Maximum 1 crore
+                    return False, "Please verify your loan amount. The amount seems unusually high for a gold loan."
                     
-            elif field_name == "Gold_Rate_Per_Gram":
-                rate = float(value)
-                if rate <= 0:
-                    return False, "Gold rate must be a positive amount. Please provide the current market rate per gram."
-                elif rate < 3000 or rate > 10000:  # Reasonable range for gold rates
-                    return False, "Please verify the gold rate. It should be the current market rate per gram (typically between ₹3,000-₹10,000)."
-                    
-            elif field_name == "Loan_Tenure_Years":
+            elif field_name == "Loan_Tenure":
                 tenure = float(value)
                 if tenure < 1:
                     return False, "INELIGIBLE: Gold loan tenure must be at least 1 year. Please specify a tenure between 1 and 3 years."
@@ -178,25 +173,19 @@ Example: {{"Customer_Name": "John Doe", "Age": 45, "Annual_Income": 900000, "Occ
     def prepare_model_input(self, user_input: Dict[str, Any]) -> pd.DataFrame:
         """Prepare input data for the gold loan model"""
         try:
-            # Calculate Gold_Value from Weight, Purity, and Rate
-            gold_value = (
-                float(user_input['Gold_Weight']) * 
-                (float(user_input['Gold_Purity']) / 24) * 
-                float(user_input['Gold_Rate_Per_Gram'])
-            )
-            
             # Convert Annual Income to Monthly Income
             monthly_income = float(user_input['Annual_Income']) / 12
             
             # Create input dataframe matching your model's expected features
+            # Model expects: ['Age', 'Occupation', 'Monthly_Income', 'CIBIL_Score', 'Gold_Value', 'Existing_EMI', 'Loan_Tenure_Years']
             input_data = {
                 'Age': float(user_input['Age']),
                 'Occupation': user_input['Occupation'],  # Will be encoded later
                 'Monthly_Income': monthly_income,
                 'CIBIL_Score': float(user_input['CIBIL_Score']),
-                'Gold_Value': gold_value,
-                'Existing_EMI': float(user_input.get('Existing_EMI', 0)),
-                'Loan_Tenure_Years': float(user_input['Loan_Tenure_Years'])
+                'Gold_Value': float(user_input['Gold_Value']),
+                'Existing_EMI': 0.0,  # Default to 0 since we don't collect this anymore
+                'Loan_Tenure_Years': float(user_input['Loan_Tenure'])
             }
             
             print(f"Gold Loan Input data prepared: {input_data}")
