@@ -197,17 +197,17 @@ export default function AdminExports() {
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Records:</span>
-                  <span className="text-sm font-medium">{exportInfo.recordCount || 0}</span>
+                  <span className="text-sm font-medium text-gray-600">{exportInfo.recordCount || 0}</span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">File Size:</span>
-                  <span className="text-sm font-medium">{formatFileSize(exportInfo.size || 0)}</span>
+                  <span className="text-sm font-medium text-gray-600">{formatFileSize(exportInfo.size || 0)}</span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Last Updated:</span>
-                  <span className="text-sm font-medium">{formatDate(exportInfo.lastModified)}</span>
+                  <span className="text-sm font-medium text-gray-600">{formatDate(exportInfo.lastModified)}</span>
                 </div>
               </div>
 

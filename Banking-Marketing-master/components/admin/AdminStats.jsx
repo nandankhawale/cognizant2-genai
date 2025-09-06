@@ -154,11 +154,11 @@ export default function AdminStats() {
                   <div className="grid grid-cols-1 gap-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Avg. Eligible Amount:</span>
-                      <span className="text-sm font-medium">₹{(loanStats.average_amount || 0).toLocaleString()}</span>
+                      <span className="text-sm font-medium text-gray-600">₹{(loanStats.average_amount || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Avg. Interest Rate:</span>
-                      <span className="text-sm font-medium">{(loanStats.average_interest || 0).toFixed(2)}%</span>
+                      <span className="text-sm font-medium text-gray-600">{(loanStats.average_interest || 0).toFixed(2)}%</span>
                     </div>
                   </div>
                 </div>

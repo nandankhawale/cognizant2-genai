@@ -103,7 +103,7 @@ export default function AdminApplications() {
               <select
                 value={selectedLoanType}
                 onChange={(e) => setSelectedLoanType(e.target.value)}
-                className="border border-gray-300 text-shadow-black rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 text-black rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {loanTypes.map((type) => (
                   <option key={type.key} value={type.key}>
@@ -120,7 +120,7 @@ export default function AdminApplications() {
               <select
                 value={limit}
                 onChange={(e) => setLimit(parseInt(e.target.value))}
-                className="border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 text-black rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>

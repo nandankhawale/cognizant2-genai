@@ -10,13 +10,25 @@ from dotenv import load_dotenv
 
 from loan_services.loan_factory import LoanServiceFactory
 from customer_data.storage_manager import CustomerDataManager
+from customer_data.mongodb_storage_manager import MongoDBStorageManager
 
 # Load environment variables
 load_dotenv()
 
 # ---------- Config ----------
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-storage_manager = CustomerDataManager()
+
+# Initialize storage managers
+try:
+    # Try MongoDB first
+    mongodb_storage = MongoDBStorageManager()
+    storage_manager = mongodb_storage
+    print("✅ Using MongoDB for data storage")
+except Exception as e:
+    # Fallback to local storage
+    storage_manager = CustomerDataManager()
+    print(f"⚠️  MongoDB connection failed, using local storage: {e}")
+    print("📁 Using local file storage as fallback")
 
 # ---------- FastAPI app ----------
 app = FastAPI(title="Multi-Loan Chatbot API", version="2.0.0")
