@@ -15,7 +15,8 @@ export default function AdminApplications() {
     { key: 'home', name: 'Home', icon: '🏠' },
     { key: 'personal', name: 'Personal', icon: '👤' },
     { key: 'gold', name: 'Gold', icon: '🥇' },
-    { key: 'business', name: 'Business', icon: '💼' }
+    { key: 'business', name: 'Business', icon: '💼' },
+    { key: 'car', name: 'Car', icon: '🚗' }
   ];
 
   useEffect(() => {

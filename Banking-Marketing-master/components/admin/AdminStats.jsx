@@ -13,7 +13,8 @@ export default function AdminStats() {
     { key: 'home', name: 'Home', icon: '🏠', color: 'bg-green-500' },
     { key: 'personal', name: 'Personal', icon: '👤', color: 'bg-purple-500' },
     { key: 'gold', name: 'Gold', icon: '🥇', color: 'bg-yellow-500' },
-    { key: 'business', name: 'Business', icon: '💼', color: 'bg-red-500' }
+    { key: 'business', name: 'Business', icon: '💼', color: 'bg-red-500' },
+    { key: 'car', name: 'Car', icon: '🚗', color: 'bg-indigo-500' }
   ];
 
   useEffect(() => {
@@ -35,7 +36,8 @@ export default function AdminStats() {
         home: { total: 8, completed: 6, approved: 4, partial: 1, average_amount: 1500000, average_interest: 7.2 },
         personal: { total: 22, completed: 18, approved: 12, partial: 4, average_amount: 75000, average_interest: 12.5 },
         gold: { total: 10, completed: 8, approved: 6, partial: 2, average_amount: 180000, average_interest: 9.8 },
-        business: { total: 5, completed: 4, approved: 3, partial: 1, average_amount: 800000, average_interest: 10.2 }
+        business: { total: 5, completed: 4, approved: 3, partial: 1, average_amount: 800000, average_interest: 10.2 },
+        car: { total: 12, completed: 10, approved: 7, partial: 2, average_amount: 650000, average_interest: 9.5 }
       });
     } finally {
       setLoading(false);

@@ -14,7 +14,8 @@ export default function AdminExports() {
     { key: 'home', name: 'Home', icon: '🏠', color: 'bg-green-500' },
     { key: 'personal', name: 'Personal', icon: '👤', color: 'bg-purple-500' },
     { key: 'gold', name: 'Gold', icon: '🥇', color: 'bg-yellow-500' },
-    { key: 'business', name: 'Business', icon: '💼', color: 'bg-red-500' }
+    { key: 'business', name: 'Business', icon: '💼', color: 'bg-red-500' },
+    { key: 'car', name: 'Car', icon: '🚗', color: 'bg-indigo-500' }
   ];
 
   useEffect(() => {
@@ -61,6 +62,12 @@ export default function AdminExports() {
           size: 5120, 
           lastModified: new Date(Date.now() - 259200000).toISOString(),
           recordCount: 4
+        },
+        car: { 
+          exists: true, 
+          size: 12680, 
+          lastModified: new Date(Date.now() - 43200000).toISOString(),
+          recordCount: 10
         }
       });
     } finally {

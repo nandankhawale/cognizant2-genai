@@ -1,0 +1,70 @@
+{
+  "education": [
+    {
+      "scenario": "Complete Information",
+      "status": "SUCCESS",
+      "extracted_fields": 13,
+      "missing_fields": 0,
+      "prediction": {
+        "loan_amount": 4308468,
+        "interest_rate": 8.15
+      }
+    },
+    {
+      "scenario": "Partial Information",
+      "status": "INCOMPLETE",
+      "extracted_fields": 5,
+      "missing_fields": 8
+    }
+  ],
+  "car": [
+    {
+      "scenario": "Complete Car Loan Info",
+      "status": "SUCCESS",
+      "extracted_fields": 11,
+      "missing_fields": 0,
+      "prediction": {
+        "loan_amount": 3674677.0,
+        "interest_rate": 11.16
+      }
+    },
+    {
+      "scenario": "Partial Car Info",
+      "status": "INCOMPLETE",
+      "extracted_fields": 9,
+      "missing_fields": 2
+    }
+  ],
+  "home": [
+    {
+      "scenario": "Complete Home Loan Info",
+      "status": "INCOMPLETE",
+      "extracted_fields": 12,
+      "missing_fields": 1
+    }
+  ],
+  "personal": [
+    {
+      "scenario": "Complete Personal Loan Info",
+      "status": "COMPLETE",
+      "extracted_fields": 11,
+      "missing_fields": 0
+    }
+  ],
+  "business": [
+    {
+      "scenario": "Complete Business Loan Info",
+      "status": "INCOMPLETE",
+      "extracted_fields": 10,
+      "missing_fields": 5
+    }
+  ],
+  "gold": [
+    {
+      "scenario": "Complete Gold Loan Info",
+      "status": "COMPLETE",
+      "extracted_fields": 10,
+      "missing_fields": 0
+    }
+  ]
+}

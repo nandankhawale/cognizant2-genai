@@ -2,11 +2,14 @@ from typing import Dict, List, Any, Tuple
 import pandas as pd
 import numpy as np
 import pickle
+import re
+import json
 from .base_loan import BaseLoanService
 
 class BusinessLoanService(BaseLoanService):
     """Business Loan Service with ML Model Integration"""
     
+    # ============ CORE CONFIGURATION METHODS ============
     def get_required_fields(self) -> List[str]:
         return [
             # Customer Contact Information
@@ -72,6 +75,7 @@ Start by introducing yourself as a business loan specialist."""
     def get_fallback_greeting(self) -> str:
         return "Hello! I'm a business loan specialist here to help you with your business loan application. Business loans can help expand your operations, purchase equipment, or manage cash flow. Let's start with your full name - what should I call you?"
     
+    # ============ DATA EXTRACTION METHODS ============
     def get_extraction_prompt(self, user_text: str, conversation: List[Dict[str, str]]) -> str:
         return f"""
 Based on the conversation history and the user's latest response, extract any business loan-related information.
@@ -111,115 +115,6 @@ Return ONLY a JSON object with the extracted fields. If no information is found,
 Example: {{"Customer_Name": "John Doe", "Business_Age_Years": 5, "Annual_Revenue": 2000000, "Net_Profit": 500000, "Business_Type": "Manufacturing", "Has_Collateral": "Yes"}}
 """.strip()
     
-    def validate_field(self, field_name: str, value: Any) -> Tuple[bool, str]:
-        """Validate individual field values with strict eligibility criteria"""
-        try:
-            if field_name == "Business_Age_Years":
-                age = float(value)
-                if age < 1:
-                    return False, "INELIGIBLE: Business must be operating for at least 1 year to qualify for a business loan."
-                elif age > 50:
-                    return False, "Please verify your business age. The duration seems unusually high. Could you confirm how many years your business has been operating?"
-                    
-            elif field_name == "CIBIL_Score":
-                cibil = float(value)
-                if cibil < 650:
-                    return False, "INELIGIBLE: A minimum CIBIL score of 650 is required for business loan approval. Your current score does not meet our eligibility criteria."
-                elif not (300 <= cibil <= 900):
-                    return False, "Please provide a valid CIBIL score between 300 and 900. Could you check and confirm your credit score?"
-                    
-            elif field_name == "Annual_Revenue":
-                revenue = float(value)
-                if revenue <= 0:
-                    return False, "Annual revenue must be a positive amount. Please provide your yearly business revenue."
-                elif revenue < 500000:  # Minimum 5 lakhs per year
-                    return False, "INELIGIBLE: Minimum annual revenue of ₹5,00,000 is required for business loan eligibility."
-                elif revenue > 1000000000:  # Maximum 100 crores (reasonable upper limit)
-                    return False, "Please verify your annual revenue. The amount seems unusually high. Could you confirm your yearly business income?"
-                    
-            elif field_name == "Net_Profit":
-                profit = float(value)
-                if profit <= 0:
-                    return False, "Net profit must be a positive amount. Please provide your yearly net profit after all expenses."
-                elif profit > 500000000:  # Maximum 50 crores (reasonable upper limit)
-                    return False, "Please verify your net profit. The amount seems unusually high. Could you confirm your yearly net profit?"
-                    
-            elif field_name == "Business_Type":
-                valid_types = ["Retail", "Trading", "Services", "Manufacturing"]
-                if value not in valid_types:
-                    return False, f"Please select your business type from: {', '.join(valid_types)}. Which category best describes your business?"
-                    
-            elif field_name == "Loan_Tenure_Years":
-                tenure = float(value)
-                if not (1 <= tenure <= 10):
-                    return False, "Business loan tenure must be between 1 and 10 years. Please specify your preferred repayment period."
-                    
-            elif field_name == "Existing_Loan_Amount":
-                amount = float(value)
-                if amount < 0:
-                    return False, "Existing loan amount cannot be negative. Please provide your current business loan amount (enter 0 if none)."
-                    
-            elif field_name == "Has_Collateral":
-                if value not in ["Yes", "No"]:
-                    return False, "Please specify if you have collateral available: Yes or No."
-                    
-            elif field_name == "Has_Guarantor":
-                if value not in ["Yes", "No"]:
-                    return False, "Please specify if you have a guarantor available: Yes or No."
-                    
-            elif field_name == "Industry_Risk_Rating":
-                valid_industries = ["Healthcare", "FMCG", "IT Services", "Education", "Automobile", "Telecom", "Real Estate", "Hospitality", "Crypto", "Airlines"]
-                if value not in valid_industries:
-                    return False, f"Please select your industry from: {', '.join(valid_industries)}. Which industry best describes your business?"
-                    
-            elif field_name == "Location_Tier":
-                valid_locations = ["Tier-3 City", "Tier-1 City", "Tier-2 City", "Rural"]
-                if value not in valid_locations:
-                    return False, f"Please select your business location type from: {', '.join(valid_locations)}. Which category best describes your business location?"
-                    
-            elif field_name == "Customer_Phone":
-                # Remove any spaces, dashes, or other characters
-                phone_clean = str(value).replace(" ", "").replace("-", "").replace("(", "").replace(")", "").replace("+91", "")
-                if not phone_clean.isdigit() or len(phone_clean) != 10:
-                    return False, "Please provide a valid 10-digit phone number (e.g., 9876543210)."
-                    
-            elif field_name == "Expected_Loan_Amount":
-                amount = float(value)
-                if amount <= 0:
-                    return False, "Expected loan amount must be a positive amount. Please specify how much loan you need."
-                elif amount < 100000:  # Minimum 1 lakh
-                    return False, "INELIGIBLE: Minimum loan amount is ₹1,00,000 for business loans."
-                elif amount > 100000000:  # Maximum 10 crores
-                    return False, "Please verify your loan requirement. The amount seems unusually high. Could you confirm how much loan you need?"
-                    
-            return True, ""
-            
-        except (ValueError, TypeError):
-            field_display = field_name.replace('_', ' ').lower()
-            return False, f"Please provide a valid {field_display} in the correct format."
-    
-    def validate_business_logic(self, collected_info: Dict[str, Any]) -> Tuple[bool, str]:
-        """Validate business logic rules across multiple fields"""
-        # Check if net profit is less than annual revenue
-        if 'Net_Profit' in collected_info and 'Annual_Revenue' in collected_info:
-            net_profit = float(collected_info['Net_Profit'])
-            annual_revenue = float(collected_info['Annual_Revenue'])
-            
-            if net_profit >= annual_revenue:
-                return False, "VALIDATION ERROR: Net profit cannot be equal to or greater than annual revenue. Please verify your financial figures. Net profit should be the amount left after all business expenses are deducted from revenue."
-        
-        return True, ""
-    
-    def convert_location_tier_to_numeric(self, location_tier: str) -> int:
-        """Convert location tier to numeric value for ML model"""
-        location_tier_map = {
-            "Tier-1 City": 1,
-            "Tier-2 City": 2, 
-            "Tier-3 City": 3,
-            "Rural": 4
-        }
-        return location_tier_map.get(location_tier, 3)  # Default to Tier-2 City if unknown
-
     def extract_info_from_response(self, user_text: str, conversation: List[Dict[str, str]]) -> Dict[str, Any]:
         """Extract information from user response with business-specific fallback logic"""
         # Try OpenAI first
@@ -233,7 +128,6 @@ Example: {{"Customer_Name": "John Doe", "Business_Age_Years": 5, "Annual_Revenue
                     temperature=0
                 )
                 extracted_text = resp.choices[0].message.content.strip()
-                import re, json
                 m = re.search(r"\{.*\}", extracted_text, re.DOTALL)
                 if m:
                     return json.loads(m.group())
@@ -247,8 +141,6 @@ Example: {{"Customer_Name": "John Doe", "Business_Age_Years": 5, "Annual_Revenue
         """Business-specific fallback extraction with lakh/crore conversion"""
         extracted = {}
         text_lower = user_text.lower().strip()
-        
-        import re
         
         # Extract name patterns
         name_patterns = [
@@ -458,6 +350,107 @@ Example: {{"Customer_Name": "John Doe", "Business_Age_Years": 5, "Annual_Revenue
         
         return extracted
 
+    # ============ VALIDATION METHODS ============
+    def validate_field(self, field_name: str, value: Any) -> Tuple[bool, str]:
+        """Validate individual field values with strict eligibility criteria"""
+        try:
+            if field_name == "Business_Age_Years":
+                age = float(value)
+                if age < 1:
+                    return False, "INELIGIBLE: Business must be operating for at least 1 year to qualify for a business loan."
+                elif age > 50:
+                    return False, "Please verify your business age. The duration seems unusually high. Could you confirm how many years your business has been operating?"
+                    
+            elif field_name == "CIBIL_Score":
+                cibil = float(value)
+                if cibil < 650:
+                    return False, "INELIGIBLE: A minimum CIBIL score of 650 is required for business loan approval. Your current score does not meet our eligibility criteria."
+                elif not (300 <= cibil <= 900):
+                    return False, "Please provide a valid CIBIL score between 300 and 900. Could you check and confirm your credit score?"
+                    
+            elif field_name == "Annual_Revenue":
+                revenue = float(value)
+                if revenue <= 0:
+                    return False, "Annual revenue must be a positive amount. Please provide your yearly business revenue."
+                elif revenue < 500000:  # Minimum 5 lakhs per year
+                    return False, "INELIGIBLE: Minimum annual revenue of ₹5,00,000 is required for business loan eligibility."
+                elif revenue > 1000000000:  # Maximum 100 crores (reasonable upper limit)
+                    return False, "Please verify your annual revenue. The amount seems unusually high. Could you confirm your yearly business income?"
+                    
+            elif field_name == "Net_Profit":
+                profit = float(value)
+                if profit <= 0:
+                    return False, "Net profit must be a positive amount. Please provide your yearly net profit after all expenses."
+                elif profit > 500000000:  # Maximum 50 crores (reasonable upper limit)
+                    return False, "Please verify your net profit. The amount seems unusually high. Could you confirm your yearly net profit?"
+                    
+            elif field_name == "Business_Type":
+                valid_types = ["Retail", "Trading", "Services", "Manufacturing"]
+                if value not in valid_types:
+                    return False, f"Please select your business type from: {', '.join(valid_types)}. Which category best describes your business?"
+                    
+            elif field_name == "Loan_Tenure_Years":
+                tenure = float(value)
+                if not (1 <= tenure <= 10):
+                    return False, "Business loan tenure must be between 1 and 10 years. Please specify your preferred repayment period."
+                    
+            elif field_name == "Existing_Loan_Amount":
+                amount = float(value)
+                if amount < 0:
+                    return False, "Existing loan amount cannot be negative. Please provide your current business loan amount (enter 0 if none)."
+                    
+            elif field_name == "Has_Collateral":
+                if value not in ["Yes", "No"]:
+                    return False, "Please specify if you have collateral available: Yes or No."
+                    
+            elif field_name == "Has_Guarantor":
+                if value not in ["Yes", "No"]:
+                    return False, "Please specify if you have a guarantor available: Yes or No."
+                    
+            elif field_name == "Industry_Risk_Rating":
+                valid_industries = ["Healthcare", "FMCG", "IT Services", "Education", "Automobile", "Telecom", "Real Estate", "Hospitality", "Crypto", "Airlines"]
+                if value not in valid_industries:
+                    return False, f"Please select your industry from: {', '.join(valid_industries)}. Which industry best describes your business?"
+                    
+            elif field_name == "Location_Tier":
+                valid_locations = ["Tier-3 City", "Tier-1 City", "Tier-2 City", "Rural"]
+                if value not in valid_locations:
+                    return False, f"Please select your business location type from: {', '.join(valid_locations)}. Which category best describes your business location?"
+                    
+            elif field_name == "Customer_Phone":
+                # Remove any spaces, dashes, or other characters
+                phone_clean = str(value).replace(" ", "").replace("-", "").replace("(", "").replace(")", "").replace("+91", "")
+                if not phone_clean.isdigit() or len(phone_clean) != 10:
+                    return False, "Please provide a valid 10-digit phone number (e.g., 9876543210)."
+                    
+            elif field_name == "Expected_Loan_Amount":
+                amount = float(value)
+                if amount <= 0:
+                    return False, "Expected loan amount must be a positive amount. Please specify how much loan you need."
+                elif amount < 100000:  # Minimum 1 lakh
+                    return False, "INELIGIBLE: Minimum loan amount is ₹1,00,000 for business loans."
+                elif amount > 100000000:  # Maximum 10 crores
+                    return False, "Please verify your loan requirement. The amount seems unusually high. Could you confirm how much loan you need?"
+                    
+            return True, ""
+            
+        except (ValueError, TypeError):
+            field_display = field_name.replace('_', ' ').lower()
+            return False, f"Please provide a valid {field_display} in the correct format."
+    
+    def validate_business_logic(self, collected_info: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate business logic rules across multiple fields"""
+        # Check if net profit is less than annual revenue
+        if 'Net_Profit' in collected_info and 'Annual_Revenue' in collected_info:
+            net_profit = float(collected_info['Net_Profit'])
+            annual_revenue = float(collected_info['Annual_Revenue'])
+            
+            if net_profit >= annual_revenue:
+                return False, "VALIDATION ERROR: Net profit cannot be equal to or greater than annual revenue. Please verify your financial figures. Net profit should be the amount left after all business expenses are deducted from revenue."
+        
+        return True, ""
+    
+    # ============ ML MODEL METHODS ============
     def prepare_model_input(self, user_input: Dict[str, Any]) -> pd.DataFrame:
         """Prepare input data for the business loan model"""
         try:
@@ -595,3 +588,14 @@ Example: {{"Customer_Name": "John Doe", "Business_Age_Years": 5, "Annual_Revenue
             import traceback
             traceback.print_exc()
             raise Exception(f"Business loan prediction failed: {str(e)}")
+
+    # ============ HELPER METHODS ============
+    def convert_location_tier_to_numeric(self, location_tier: str) -> int:
+        """Convert location tier to numeric value for ML model"""
+        location_tier_map = {
+            "Tier-1 City": 1,
+            "Tier-2 City": 2, 
+            "Tier-3 City": 3,
+            "Rural": 4
+        }
+        return location_tier_map.get(location_tier, 3)  # Default to Tier-2 City if unknown

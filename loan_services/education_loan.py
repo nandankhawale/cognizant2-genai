@@ -140,6 +140,285 @@ Start by introducing yourself and asking for their name first."""
         else:
             return "Poor"
 
+    def extract_info_from_response(self, user_text: str, conversation: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Enhanced extraction for education loans with better pattern matching"""
+        # Try OpenAI first
+        if self.client:
+            try:
+                extraction_prompt = self.get_extraction_prompt(user_text, conversation)
+                resp = self.client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": extraction_prompt}],
+                    temperature=0,
+                    timeout=8
+                )
+                extracted_text = resp.choices[0].message.content.strip()
+                import json
+                import re
+                m = re.search(r"\{.*\}", extracted_text, re.DOTALL)
+                if m:
+                    return json.loads(m.group())
+            except Exception as e:
+                print(f"OpenAI extraction failed: {e}")
+        
+        # Enhanced fallback extraction
+        extracted = {}
+        text_lower = user_text.lower().strip()
+        
+        # Extract name - more flexible patterns
+        name_patterns = [
+            r'my name is ([a-zA-Z\s]+)',
+            r'i am ([a-zA-Z\s]+)',
+            r'i\'m ([a-zA-Z\s]+)',
+            r'call me ([a-zA-Z\s]+)',
+            r'name\s*:?\s*([a-zA-Z\s]+)',
+        ]
+        
+        for pattern in name_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                name = match.group(1).strip().title()
+                if len(name) > 1 and not any(char.isdigit() for char in name):
+                    extracted['Customer_Name'] = name
+                    break
+        
+        # If no pattern matched but looks like just a name
+        if not extracted.get('Customer_Name'):
+            last_assistant_msg = ""
+            if len(conversation) > 0:
+                for msg in reversed(conversation):
+                    if msg.get('role') == 'assistant':
+                        last_assistant_msg = msg.get('content', '').lower()
+                        break
+            
+            if 'name' in last_assistant_msg and len(text_lower.split()) <= 3:
+                if re.match(r'^[a-zA-Z\s]+$', user_text.strip()) and 2 <= len(user_text.strip()) <= 50:
+                    extracted['Customer_Name'] = user_text.strip().title()
+        
+        # Extract email - improved pattern
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        email_match = re.search(email_pattern, user_text)
+        if email_match:
+            extracted['Customer_Email'] = email_match.group(0)
+        
+        # Extract phone - handle various formats
+        phone_patterns = [
+            r'(\+91[\s-]?)?([6-9]\d{9})',
+            r'(\d{10})',
+            r'(\d{3}[\s-]\d{3}[\s-]\d{4})'
+        ]
+        
+        for pattern in phone_patterns:
+            match = re.search(pattern, user_text)
+            if match:
+                phone = re.sub(r'[^\d]', '', match.group())
+                if phone.startswith('91') and len(phone) == 12:
+                    phone = phone[2:]
+                if len(phone) == 10 and phone[0] in '6789':
+                    extracted['Customer_Phone'] = phone
+                    break
+        
+        # Extract age - multiple patterns
+        age_patterns = [
+            r'i am (\d+) years? old',
+            r'my age is (\d+)',
+            r'age\s*:?\s*(\d+)',
+            r'(\d+)\s+years?\s+old',
+            r'^(\d+)$'  # Just a number when asked for age
+        ]
+        
+        for pattern in age_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                age = int(match.group(1))
+                if 18 <= age <= 35:
+                    extracted['Age'] = age
+                    break
+        
+        # Extract academic score
+        score_patterns = [
+            r'academic score.*?(\d+)',
+            r'score.*?(\d+)',
+            r'(\d+)%',
+            r'(\d+)\s*percent',
+            r'^(\d+)$'  # Just a number when asked for score
+        ]
+        
+        last_assistant_msg = ""
+        if len(conversation) > 0:
+            for msg in reversed(conversation):
+                if msg.get('role') == 'assistant':
+                    last_assistant_msg = msg.get('content', '').lower()
+                    break
+        
+        for pattern in score_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                score = int(match.group(1))
+                if 0 <= score <= 100:
+                    extracted['Academic_Score'] = score
+                    break
+        
+        # If asking about score and user just gives number
+        if 'score' in last_assistant_msg and re.match(r'^\d+$', user_text.strip()):
+            score = int(user_text.strip())
+            if 0 <= score <= 100:
+                extracted['Academic_Score'] = score
+        
+        # Extract intended course
+        course_map = {
+            'stem': 'STEM',
+            'mba': 'MBA', 
+            'medicine': 'Medicine',
+            'medical': 'Medicine',
+            'finance': 'Finance',
+            'law': 'Law',
+            'arts': 'Arts',
+            'other': 'Other'
+        }
+        
+        for key, value in course_map.items():
+            if key in text_lower:
+                extracted['Intended_Course'] = value
+                break
+        
+        # Extract university tier
+        tier_patterns = [
+            r'tier\s*(\d)',
+            r'tier(\d)',
+            r'(\d)\s*tier'
+        ]
+        
+        for pattern in tier_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                tier_num = match.group(1)
+                if tier_num in ['1', '2', '3']:
+                    extracted['University_Tier'] = f'Tier{tier_num}'
+                    break
+        
+        # Extract amounts with lakh/crore conversion
+        def convert_amount(amount_str):
+            amount_str = amount_str.lower().strip()
+            number_match = re.search(r'([\d,]+(?:\.[\d,]+)?)', amount_str)
+            if not number_match:
+                return None
+            
+            number_str = number_match.group(1).replace(',', '')
+            try:
+                number = float(number_str)
+            except ValueError:
+                return None
+            
+            if 'crore' in amount_str:
+                return int(number * 10000000)
+            elif 'lakh' in amount_str:
+                return int(number * 100000)
+            else:
+                return int(number)
+        
+        # Extract coapplicant income
+        income_patterns = [
+            r'coapplicant.*?income.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'co.*?applicant.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?).*?coapplicant'
+        ]
+        
+        for pattern in income_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                amount = convert_amount(match.group(1))
+                if amount and amount > 0:
+                    extracted['Coapplicant_Income'] = amount
+                    break
+        
+        # Extract guarantor networth
+        networth_patterns = [
+            r'guarantor.*?networth.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'guarantor.*?assets.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'networth.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'assets.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)'
+        ]
+        
+        for pattern in networth_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                amount = convert_amount(match.group(1))
+                if amount and amount > 0:
+                    extracted['Guarantor_Networth'] = amount
+                    break
+        
+        # Extract CIBIL score
+        cibil_patterns = [
+            r'cibil.*?(\d{3})',
+            r'credit.*?score.*?(\d{3})',
+            r'(\d{3}).*?cibil',
+            r'(\d{3}).*?credit.*?score'
+        ]
+        
+        for pattern in cibil_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                score = int(match.group(1))
+                if 300 <= score <= 900:
+                    extracted['CIBIL_Score'] = score
+                    break
+        
+        # Extract loan type
+        if 'secured' in text_lower:
+            extracted['Loan_Type'] = 'Secured'
+        elif 'unsecured' in text_lower:
+            extracted['Loan_Type'] = 'Unsecured'
+        
+        # Extract loan term
+        term_patterns = [
+            r'(\d+)\s+years?.*?term',
+            r'term.*?(\d+)\s+years?',
+            r'(\d+)\s+years?.*?loan',
+            r'loan.*?(\d+)\s+years?'
+        ]
+        
+        for pattern in term_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                term = int(match.group(1))
+                if 1 <= term <= 15:
+                    extracted['Loan_Term'] = term
+                    break
+        
+        # If asking about term and user just gives number
+        if 'term' in last_assistant_msg or 'years' in last_assistant_msg:
+            if re.match(r'^\d+$', user_text.strip()):
+                term = int(user_text.strip())
+                if 1 <= term <= 15:
+                    extracted['Loan_Term'] = term
+        
+        # Extract expected loan amount
+        loan_amount_patterns = [
+            r'need.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'want.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'loan.*?amount.*?([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)',
+            r'([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?).*?loan'
+        ]
+        
+        for pattern in loan_amount_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                amount = convert_amount(match.group(1))
+                if amount and amount > 0:
+                    extracted['Expected_Loan_Amount'] = amount
+                    break
+        
+        # If asking about loan amount and user just gives amount
+        if 'loan amount' in last_assistant_msg or 'how much' in last_assistant_msg:
+            amount_match = re.search(r'([\d,]+(?:\.[\d,]+)?\s*(?:lakh|crore|lakhs|crores)?)', text_lower)
+            if amount_match:
+                amount = convert_amount(amount_match.group(1))
+                if amount and amount > 0:
+                    extracted['Expected_Loan_Amount'] = amount
+        
+        return extracted
+
     def get_extraction_prompt(self, user_text: str, conversation: List[Dict[str, str]]) -> str:
         return f"""
 Based on the conversation history and the user's latest response, extract any education loan-related information.
@@ -171,6 +450,17 @@ Example: {{"Customer_Name": "John Doe", "Customer_Email": "john@example.com", "A
         """Calculate repayment capacity for education loans"""
         return (income * 4) + (networth * 0.05) + (cibil / 2)
     
+    def convert_academic_score_to_performance(self, score: float) -> str:
+        """Convert academic score (0-100) to performance category"""
+        if score >= 85:
+            return "Excellent"
+        elif score >= 75:
+            return "Good"
+        elif score >= 60:
+            return "Average"
+        else:
+            return "Poor"
+    
     def predict_loan(self, user_input: Dict[str, Any]) -> tuple:
         """Predict education loan amount and interest rate"""
         if not all([self.models.get("xgb_loan"), self.models.get("xgb_interest"), 
@@ -179,6 +469,12 @@ Example: {{"Customer_Name": "John Doe", "Customer_Email": "john@example.com", "A
         
         # Create a copy to avoid modifying original
         processed_input = user_input.copy()
+        
+        # Convert Academic_Score to Academic_Performance if needed
+        if "Academic_Score" in processed_input and "Academic_Performance" not in processed_input:
+            processed_input["Academic_Performance"] = self.convert_academic_score_to_performance(
+                float(processed_input["Academic_Score"])
+            )
         
         # Add computed feature
         processed_input["Repayment_Capacity"] = self.repayment_capacity(
